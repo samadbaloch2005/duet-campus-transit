@@ -98,18 +98,20 @@ with st.sidebar:
     st.info("💡 **Daily Reset:** Raat 12:00 AM par tamam stops khud ba khud **Upcoming** par shift ho jate hain.")
 
 # 7. Live Telemetry Read
-bus_lat, bus_lon, bus_speed = 0.0, 0.0, 0.0
-last_timestamp = "Signal Waiting"
-if os.path.exists("live_bus.json"):
-    try:
-        with open("live_bus.json", "r") as f:
-            live = json.load(f)
-            bus_lat = float(live.get("lat", 0.0))
-            bus_lon = float(live.get("lon", 0.0))
-            bus_speed = float(live.get("speed", 0.0))
-            last_timestamp = live.get("timestamp", "N/A")
-    except Exception:
-        pass
+# app.py ke Section 7 mein yeh hona chahiye:
+FIREBASE_DB_URL = "https://duet-transit-sa-ui-default-rtdb.firebaseio.com"
+
+try:
+    url = f"{FIREBASE_DB_URL}/live_fleet/{selected_key}.json"
+    resp = requests.get(url, timeout=3)
+    if resp.status_code == 200 and resp.json():
+        live = resp.json()
+        bus_lat = float(live.get("lat", 0.0))
+        bus_lon = float(live.get("lon", 0.0))
+        bus_speed = float(live.get("speed", 0.0))
+        last_timestamp = live.get("timestamp", "N/A")
+except Exception:
+    pass
 
 # 8. Midnight Reset Engine (Per-Point State)
 state_file = f"daily_state_{selected_key}.json"
