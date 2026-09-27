@@ -397,7 +397,7 @@ with tab_complaint:
     st.write("---")
     with st.expander("🔐 DUET Transport Department Official Access (Admin Only)"):
         admin_pass = st.text_input("Enter Transport Officer Secret Passkey", type="password")
-        if admin_pass == "duet_transport_admin":
+        if admin_pass == "987654321duet":
             st.success("Authorized: DUET Transport Section Grievance Management Panel Active.")
             
             if complaints:
