@@ -5,6 +5,7 @@ import json
 import os
 import math
 import random
+import requests
 from datetime import datetime, timezone, timedelta
 from streamlit_autorefresh import st_autorefresh
 
@@ -20,7 +21,7 @@ today_date_str = now_pkt.strftime("%Y-%m-%d")
 
 # 3. Load Fleet Routes from routes_config.json
 if not os.path.exists("routes_config.json"):
-    st.error("⚠️ `routes_config.json` file nahi mili! Tasdeeq karein ke file isi folder mein save hai.")
+    st.error("⚠️ `routes_config.json` file nahi mili! Tasdeeq karein ke file GitHub repo mein mojood hai.")
     st.stop()
 
 with open("routes_config.json", "r") as f:
@@ -30,7 +31,7 @@ with open("routes_config.json", "r") as f:
         st.error(f"routes_config.json read karne mein masla hua: {e}")
         st.stop()
 
-# 4. Custom Cyber UI Styling
+# 4. Custom Styling
 st.markdown("""
 <style>
     .main { background: #070b14; color: #f8fafc; font-family: 'Segoe UI', Tahoma, sans-serif; }
@@ -70,7 +71,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 5. Helper Distance Function (Haversine km)
+# 5. Helper Distance Function (Haversine in km)
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371.0
     dlat = math.radians(lat2 - lat1)
@@ -97,9 +98,14 @@ with st.sidebar:
     st.caption("• **Campus Arrival:** `08:30 AM`\n• **Campus Departure:** `05:00 PM`")
     st.info("💡 **Daily Reset:** Raat 12:00 AM par tamam stops khud ba khud **Upcoming** par shift ho jate hain.")
 
-# 7. Live Telemetry Read
-# app.py ke Section 7 mein yeh hona chahiye:
+# 7. Live Telemetry Read (From Firebase Realtime Database)
 FIREBASE_DB_URL = "https://duet-transit-sa-ui-default-rtdb.firebaseio.com"
+
+# Variables initialized unconditionally
+bus_lat = 0.0
+bus_lon = 0.0
+bus_speed = 0.0
+last_timestamp = "Signal Waiting"
 
 try:
     url = f"{FIREBASE_DB_URL}/live_fleet/{selected_key}.json"
@@ -113,7 +119,7 @@ try:
 except Exception:
     pass
 
-# 8. Midnight Reset Engine (Per-Point State)
+# 8. Midnight Reset Engine
 state_file = f"daily_state_{selected_key}.json"
 state = {"date": today_date_str, "passed_stops": []}
 if os.path.exists(state_file):
@@ -146,8 +152,11 @@ if bus_lat != 0.0 and bus_lon != 0.0:
 
 state["passed_stops"] = list(passed_stops_set)
 state["date"] = today_date_str
-with open(state_file, "w") as f:
-    json.dump(state, f)
+try:
+    with open(state_file, "w") as f:
+        json.dump(state, f)
+except Exception:
+    pass
 
 # 9. Format Stops Data
 processed_stops = []
@@ -265,8 +274,11 @@ with tab_feedback:
                     "date": now_pkt.strftime("%d %b %Y, %I:%M %p")
                 }
                 feedbacks.insert(0, new_entry)
-                with open("feedback.json", "w") as ff:
-                    json.dump(feedbacks, ff)
+                try:
+                    with open("feedback.json", "w") as ff:
+                        json.dump(feedbacks, ff)
+                except Exception:
+                    pass
                 st.success("Aapka feedback publicly submit ho gaya hai!")
 
     with col_fb_list:
@@ -309,7 +321,6 @@ with tab_complaint:
 
     col_cmp_submit, col_cmp_track = st.columns([1.5, 1.5])
 
-    # Left: Complaint Submission Form
     with col_cmp_submit:
         st.markdown("#### 📝 File a Driver Complaint")
         with st.form("driver_complaint_form", clear_on_submit=True):
@@ -355,12 +366,14 @@ with tab_complaint:
                         "timestamp": now_pkt.strftime("%d %b %Y, %I:%M %p")
                     }
                     complaints.insert(0, complaint_record)
-                    with open("complaints.json", "w") as cf:
-                        json.dump(complaints, cf)
+                    try:
+                        with open("complaints.json", "w") as cf:
+                            json.dump(complaints, cf)
+                    except Exception:
+                        pass
                     st.success(f"Complaint darj ho gayi! Aapki Ticket ID: **{ticket_id}** hai.")
                     st.info("Is Ticket ID ya apne Roll Number se aap barabar wale box mein status track kar sakte hain.")
 
-    # Right: Individual Student Status Tracking
     with col_cmp_track:
         st.markdown("#### 🔍 Student Private Tracking Status")
         track_query = st.text_input("Enter your Roll No or Ticket ID to Check Status", placeholder="e.g. 22-AI-45 or DUET-CMP-1234")
@@ -395,11 +408,10 @@ with tab_complaint:
         else:
             st.info("Apna status janne ke liye upar Roll No ya Ticket ID likhein.")
 
-    # Bottom: Secured University Transport Department Section
     st.write("---")
     with st.expander("🔐 DUET Transport Department Official Access (Admin Only)"):
         admin_pass = st.text_input("Enter Transport Officer Secret Passkey", type="password")
-        if admin_pass == "987654321duet":
+        if admin_pass == "duet_transport_admin":
             st.success("Authorized: DUET Transport Section Grievance Management Panel Active.")
             
             if complaints:
@@ -420,8 +432,11 @@ with tab_complaint:
                             c["status"] = new_status
                             if officer_remark:
                                 c["admin_remark"] = officer_remark
-                    with open("complaints.json", "w") as cf:
-                        json.dump(complaints, cf)
+                    try:
+                        with open("complaints.json", "w") as cf:
+                            json.dump(complaints, cf)
+                    except Exception:
+                        pass
                     st.success(f"Ticket {ticket_to_update} successfully updated to '{new_status}'!")
                     st.rerun()
 
@@ -431,4 +446,4 @@ with tab_complaint:
         elif admin_pass != "":
             st.error("Ghalat Passkey! Sirf authorized officers access kar sakte hain.")
 
-st.caption(f"Last Sensor Ping: `{last_timestamp}` | Gateway: SSL Encrypted Tunnel | DUET Transport Section Karachi")
+st.caption(f"Last Sensor Ping: `{last_timestamp}` | Gateway: Cloud Sync | DUET Transport Section Karachi")
