@@ -201,6 +201,103 @@ tab_radar, tab_feedback, tab_complaint = st.tabs([
     "⚠️ Driver Complaint & Grievance (Confidential)"
 ])
 
+# 13. Map and Timeline Layout
+map_col, list_col = st.columns([1.7, 1.2])
+
+with map_col:
+    st.subheader(f"🗺️ Route Radar — {active_point['route_name']}")
+    stops_df = pd.DataFrame(processed_stops)
+    
+    # Connecting Polyline Path between all stops
+    route_path = [{"path": [[s["lon"], s["lat"]] for s in stops], "color": [56, 189, 248, 140]}]
+    
+    layers = [
+        # 1. Route Blue Line
+        pdk.Layer(
+            "PathLayer",
+            data=route_path,
+            get_path="path",
+            get_color="color",
+            width_min_pixels=3,
+            rounded=True
+        ),
+        # 2. Stops (Yellow/Green/Red)
+        pdk.Layer(
+            "ScatterplotLayer",
+            data=stops_df,
+            get_position=["lon", "lat"],
+            get_color="rgb",
+            get_radius=110,
+            pickable=True,
+        )
+    ]
+
+    # 3. Live Moving Bus Marker (Sirf tab render kare jab valid GPS coordinates hon)
+    has_live_gps = (bus_lat != 0.0 and bus_lon != 0.0)
+    
+    if has_live_gps:
+        bus_df = pd.DataFrame([{
+            "lat": bus_lat, 
+            "lon": bus_lon, 
+            "label": f"🚎 {active_point['point_no']} ({bus_speed} km/h)"
+        }])
+        
+        # Outer Glowing Radar Pulse (Light Cyan)
+        layers.append(
+            pdk.Layer(
+                "ScatterplotLayer",
+                data=bus_df,
+                get_position=["lon", "lat"],
+                get_color=[0, 195, 255, 90],
+                get_radius=320,
+                pickable=False,
+            )
+        )
+        # Inner Solid High-Tech Blue Marker
+        layers.append(
+            pdk.Layer(
+                "ScatterplotLayer",
+                data=bus_df,
+                get_position=["lon", "lat"],
+                get_color=[0, 220, 255, 255],
+                get_radius=160,
+                pickable=True,
+            )
+        )
+        # Live Floating Bus Emoji Text on Map
+        layers.append(
+            pdk.Layer(
+                "TextLayer",
+                data=bus_df,
+                get_position=["lon", "lat"],
+                get_text="label",
+                get_size=15,
+                get_color=[255, 255, 255, 255],
+                get_alignment_baseline="'bottom'",
+                get_pixel_offset=[0, -18]
+            )
+        )
+        # Map auto-centers on the moving bus
+        center_lat = bus_lat
+        center_lon = bus_lon
+        zoom_level = 13.6
+    else:
+        # Bus band hone par route ke center par focus kare
+        center_lat = stops[len(stops)//2]["lat"]
+        center_lon = stops[len(stops)//2]["lon"]
+        zoom_level = 12.0
+
+    st.pydeck_chart(pdk.Deck(
+        layers=layers,
+        initial_view_state=pdk.ViewState(
+            latitude=center_lat, 
+            longitude=center_lon, 
+            zoom=zoom_level, 
+            pitch=35
+        ),
+        map_style="dark"
+    ))
+    
 # ================= TAB 1: RADAR & STOPS =================
 with tab_radar:
     c1, c2, c3, c4 = st.columns(4)
