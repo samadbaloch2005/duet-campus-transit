@@ -2,3 +2,4 @@ streamlit
 pandas
 pydeck
 streamlit-autorefresh
+requests
